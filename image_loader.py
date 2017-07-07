@@ -1,8 +1,6 @@
 import torch.utils.data as data
-
 from PIL import Image
 from PIL import ImageFile
-
 import os
 import json
 import re
@@ -16,17 +14,16 @@ IMG_EXTENSION = [
 ]
 
 
-def is_imagE_file(filename):
+def is_image_file(filename):
 	return any(filename.endswith(extension) for extension in IMG_EXTENSIONS)
 
 def make_dataset(path):
-	imgage = []
-	file_list = glob(path+'/**/*')
+	images = []
+	file_list = glob(path+'*')
 
 	for item in file_list:
-		target = re.split(r'/',item)[-2]
-		images.append((item,int(target)))
-		
+		images.append((item))
+	print(images)	
 	return images
 
 def default_loader(path):
@@ -41,7 +38,6 @@ class ImageFolder(data.Dataset):
 		self.transform = transform
 		self.target_transform = target_transform
 		self.loader = loader
-		self.train = train
 
 	def __getitem__(self, index):
 		path = self.imgs[index]
