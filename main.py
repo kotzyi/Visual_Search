@@ -12,12 +12,12 @@ from torch.autograd import Variable
 import torch.backends.cudnn as cudnn
 import numpy as np
 import Resnet
-from image_loader import ImageFolder
+from Data import image_loader
 
 # Training settings
 parser = argparse.ArgumentParser(description='PyTorch Visual Shopping')
 parser.add_argument('data', metavar = 'DIR',help = 'path to dataset')
-parser.add_argument('--batch-size', type=int, default=64, metavar='N',
+parser.add_argument('--batch-size', type=int, default=1, metavar='N',
                     help='input batch size for training (default: 64)')
 parser.add_argument('--epochs', type=int, default=100, metavar='N',
                     help='number of epochs to train (default: 100)')
@@ -39,6 +39,8 @@ parser.add_argument('--test', dest='test', action='store_true',
                     help='To only run inference on test set')
 parser.add_argument('--workers', type = int, default = 4, metavar = 'N',
 					help='number of works for data londing')
+parser.add_argument('--weight-decay', '--wd', default=1e-4, type=float,	metavar='W', 
+					help='weight decay (default: 1e-4)')
 
 best_acc = 0
 
@@ -55,8 +57,8 @@ def main():
 	normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     
 	#이미지 로딩
-	train_loader = torch.utils.data.DataLoader(
-		ImageFolder(data_path,transforms.Compose([
+	image_data = torch.utils.data.DataLoader(
+		image_loader.ImageFolder(data_path,transforms.Compose([
 			transforms.Scale(400),
 			transforms.CenterCrop(400),
 			transforms.RandomHorizontalFlip(),
@@ -69,11 +71,25 @@ def main():
 		pin_memory = True,
 	)
 
-	for img in train_loader:
-		images = torch.autograd.Variable(img,volatile=True)
-		print(images)
 
-	print(train_loader)
+
+	# model 생성
+	model = Resnet.resnet18(pretrained=True)
+
+	#loss function와 optimizer 정의
+	criterion = nn.CrossEntropyLoss().cuda()
+	optimizer = torch.optim.Adagrad(model.parameters(), args.lr, weight_decay =args.weight_decay)
+	
+	inference(image_data, model, criterion)
+
+def inference(image_data, model, criterion):
+	model.eval()
+    
+	for idx, (input) in enumerate(image_data):
+		input_var = torch.autograd.Variable(input,volatile=True)
+		output = model(input_var)
+		print(output)
+		
 
 
 if __name__ == '__main__':
