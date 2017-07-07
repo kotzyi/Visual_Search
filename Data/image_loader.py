@@ -19,7 +19,7 @@ def is_image_file(filename):
 
 def make_dataset(path):
 	images = []
-	file_list = glob(path+'*')
+	file_list = glob(path+'/*')
 
 	for item in file_list:
 		images.append((item))
