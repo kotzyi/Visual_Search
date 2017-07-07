@@ -8,6 +8,9 @@ model_urls = {
 }
 
 
+def conv33(input_plane,output_plane, stride = 1):
+	return nn.Conv2d(input_plane,output_plane,kernel_size=3,stride=stride,padding=1,bias=False)
+
 class BasicBlock(nn.Module):
 	def __init__(self,input_plane,output_plane,stride = 1, downsample=None):
 		super(BasicBlock, self).__init__()
@@ -17,10 +20,7 @@ class BasicBlock(nn.Module):
 		self.conv2 = conv33(output_plane,output_plane)
 		self.bn2 = nn.BatchNorm2d(output_plane)
 		self.downsample = downsample
-		self.stride = strdie
-
-	def conv33(input_plane,output_plane):
-		return nn.Conv2d(input_plane,output_plane,kernel_size=3,stride=stride,padding=1,bias=False)
+		self.stride = stride
 
 	def forward(self,x):
 		residual = x
@@ -41,9 +41,9 @@ class BasicBlock(nn.Module):
 		return out
 
 class ResNet(nn.Module):
-	def __init__(self,block,layers,feature_size = 64):
+	def __init__(self,block,layers,feature_size = 256):
 		self.input_plane = 64
-		super(Resnet,self).__init__()
+		super(ResNet,self).__init__()
 		self.conv1 = nn.Conv2d(3, 64, kernel_size = 7, stride = 2, padding = 3, bias = False)
 		self.bn1 = nn.BatchNorm2d(64)
 		self.relu = nn.ReLU(inplace=True)
@@ -52,7 +52,7 @@ class ResNet(nn.Module):
 		self.layer2 = self._make_layer(block,128,layers[1], stride = 2)
 		self.layer3 = self._make_layer(block,256,layers[2], stride = 2)
 		self.avgpool = nn.AvgPool2d(7)
-		self.fc_embed = nn.Linear(256,feature_size)
+		self.fc_embed = nn.Linear(256*3*3, feature_size)
 
 		for m in self.modules():
 			if isinstance(m,nn.Conv2d):
@@ -73,7 +73,8 @@ class ResNet(nn.Module):
 		layers = []
 		layers.append(block(self.input_plane,planes,stride,downsample))
 		self.input_plane = planes
-		for i in range(1, block):
+
+		for i in range(1, blocks):
 			layers.append(block(self.input_plane, planes))
 
 		return nn.Sequential(*layers)
@@ -98,7 +99,7 @@ def resnet18(pretrained = False, **kwargs):
 	model = ResNet(BasicBlock,[2,2,2], **kwargs)
 	if pretrained:
 		state = model.state_dict()
-		loaded_state_dict = model_zoo.load_url(modle_urls['resnet18'])
+		loaded_state_dict = model_zoo.load_url(model_urls['resnet18'])
 
 		for k in loaded_state_dict:
 			if k in state:
