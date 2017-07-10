@@ -41,7 +41,7 @@ class BasicBlock(nn.Module):
 		return out
 
 class ResNet(nn.Module):
-	def __init__(self,block,layers,feature_size = 256):
+	def __init__(self,block,layers,feature_size = 512):
 		self.input_plane = 64
 		super(ResNet,self).__init__()
 		self.conv1 = nn.Conv2d(3, 64, kernel_size = 7, stride = 2, padding = 3, bias = False)
