@@ -21,11 +21,12 @@ def make_dataset(path):
 	images = []
 	if os.path.isdir(path):
 		file_list = glob(path+'/*')
-	else:
-		file_list.append(path)
+		for item in file_list:
+			images.append((item))
 
-	for item in file_list:
-		images.append((item))
+	else:
+		images.append((path))
+
 	return images
 
 def default_loader(path):
