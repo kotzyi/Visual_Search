@@ -23,7 +23,6 @@ def make_dataset(path):
 
 	for item in file_list:
 		images.append((item))
-	print(images)
 	return images
 
 def default_loader(path):

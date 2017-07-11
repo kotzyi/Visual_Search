@@ -19,7 +19,7 @@ from glob import glob
 # Training settings
 parser = argparse.ArgumentParser(description='PyTorch Visual Shopping')
 parser.add_argument('data', metavar = 'DIR',help = 'path to dataset')
-parser.add_argument('--batch-size', type=int, default=1024, metavar='N',
+parser.add_argument('--batch-size', type=int, default=256, metavar='N',
                     help='input batch size for training (default: 64)')
 parser.add_argument('--epochs', type=int, default=100, metavar='N',
                     help='number of epochs to train (default: 100)')
@@ -31,15 +31,13 @@ parser.add_argument('--seed', type=int, default=1, metavar='S',
                     help='random seed (default: 1)')
 parser.add_argument('--no-cuda', action='store_true', default=False,
                     help='enables CUDA training')
-parser.add_argument('--log-interval', type=int, default=20, metavar='N',
-                    help='how many batches to wait before logging training status')
 parser.add_argument('--resume', default='', type=str,
                     help='path to latest checkpoint (default: none)')
 parser.add_argument('--name', default='Visual_Search', type=str,
                     help='name of experiment')
 parser.add_argument('--test', dest='test', action='store_true',
                     help='To only run inference on test set')
-parser.add_argument('--workers', type = int, default = 4, metavar = 'N',
+parser.add_argument('--workers', type = int, default = 8, metavar = 'N',
 					help='number of works for data londing')
 parser.add_argument('--weight-decay', '--wd', default=1e-4, type=float,	metavar='W', 
 					help='weight decay (default: 1e-4)')
@@ -78,15 +76,17 @@ def main():
 
 	# model 생성
 	model = Resnet.resnet18(pretrained=True,feature_size = args.feature_size)
+	model = torch.nn.DataParallel(model).cuda()
 	model.eval()
 
 	#Inferencing dataset
 	print("Analyzing Data")
-	inferenced_data = inference(image_data, model)
 	paths = glob(data_path+"/*")
+	imageN = len(paths)
+
+	inferenced_data = inference(image_data, model)
 	#dist = sorted(dist, key = lambda x: x[1])
-	data_number = len(inferenced_data)
-	print("Analyzed %s images"%data_number)
+	print("Analyzed %s images"%imageN)
 
 	while True:
 		anchor_path = input("PATH: ")
@@ -107,7 +107,7 @@ def main():
 			)
 			
 			inferenced_anchor = inference(anchor_image, model)
-			inferenced_anchor = inferenced_anchor.expand(data_number, args.feature_size)
+			inferenced_anchor = inferenced_anchor.expand(imageN, args.feature_size)
 			
 			distances = F.pairwise_distance(inferenced_data,inferenced_anchor,2).data.cpu().numpy().tolist()
 			result = []
@@ -119,18 +119,34 @@ def main():
 			print(result[:3])
 
 def inference(image_data, model):
+	#Progress bar setting
+	counter = 0
+	imageN = len(image_data)*args.batch_size
+	printProgressBar(counter, imageN, prefix = 'Progress:', suffix = 'Complete', length = 100)
+
 	inferenced_data = torch.autograd.Variable(torch.randn(1,1),volatile=True)
 	for idx, (path, input) in enumerate(image_data):
 		input_var = torch.autograd.Variable(input,volatile=True)
 		output = model(input_var)
-
 		if idx == 0:
 			inferenced_data = output
 		else:
 			inferenced_data = torch.cat([inferenced_data,output],0)
+
+		counter = counter + args.batch_size
+		printProgressBar(counter, imageN, prefix = 'Progress:', suffix = 'Complete', length = 100)
 	
 	return inferenced_data
-	
+
+# Print iterations progress
+def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, length = 100, fill = '█'):
+	percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
+	filledLength = int(length * iteration // total)
+	bar = fill * filledLength + '-' * (length - filledLength)
+	print('\r%s |%s| %s%% %s' % (prefix, bar, percent, suffix), end = '\r')
+	# Print New Line on Complete
+	if iteration == total:
+		print()
 
 if __name__ == '__main__':
 	main()    
