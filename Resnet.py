@@ -100,6 +100,7 @@ def resnet18(pretrained = False, **kwargs):
 	if pretrained:
 		state = model.state_dict()
 		loaded_state_dict = model_zoo.load_url(model_urls['resnet18'])
+		#loaded_state_dict = torch.load("/home/jlee/pytorch/vishop/runs/shape_4_18_pretrained/model_best.pth.tar")
 
 		for k in loaded_state_dict:
 			if k in state:

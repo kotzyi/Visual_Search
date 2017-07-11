@@ -15,6 +15,8 @@ import Resnet
 from Data import image_loader
 import readline
 from glob import glob
+import pymongo
+from pymongo import MongoClient
 
 # Training settings
 parser = argparse.ArgumentParser(description='PyTorch Visual Shopping')
@@ -43,8 +45,11 @@ parser.add_argument('--weight-decay', '--wd', default=1e-4, type=float,	metavar=
 					help='weight decay (default: 1e-4)')
 parser.add_argument('--anchor', default='', type=str,
 					help='path to anchor image folder')
-parser.add_argument('--feature_size', default=128, type=int,
+parser.add_argument('--feature-size', default=256*3*3, type=int,
 					help='fully connected layer size')
+parser.add_argument('--save-db', action='store_true', default=False, 
+					help='save inferencing result to redis db')
+
 
 best_acc = 0
 
@@ -88,35 +93,50 @@ def main():
 	#dist = sorted(dist, key = lambda x: x[1])
 	print("Analyzed %s images"%imageN)
 
+	#Save result to db
+	if args.save_db:
+		inf_data = inferenced_data.data.cpu().numpy().tolist()
+		inf_dict = {paths[idx]:item for idx, item in enumerate(inf_data)}
+		client = MongoClient('10.214.35.36',27017)
+		
+		db = client.db
+		posts = db.posts
+		print(inf_dict)
+		result = posts.insert_one(inf_dict)
+		print(posts.count())
+
 	while True:
 		anchor_path = input("PATH: ")
 		if anchor_path == "q":
 			break
 		else:
-			anchor_image = torch.utils.data.DataLoader(
-				image_loader.ImageFolder(anchor_path,transforms.Compose([
-					transforms.Scale(400),
-					transforms.CenterCrop(400),
-					transforms.ToTensor(),
-					normalize,
-				])),
-				batch_size = 1,
-				shuffle = False,
-				num_workers = args.workers,
-				pin_memory = True,
-			)
+			try:
+				anchor_image = torch.utils.data.DataLoader(
+					image_loader.ImageFolder(anchor_path,transforms.Compose([
+						transforms.Scale(400),
+						transforms.CenterCrop(400),
+						transforms.ToTensor(),
+						normalize,
+					])),
+					batch_size = 1,
+					shuffle = False,
+					num_workers = args.workers,
+					pin_memory = True,
+				)
 			
-			inferenced_anchor = inference(anchor_image, model)
-			inferenced_anchor = inferenced_anchor.expand(imageN, args.feature_size)
+				inferenced_anchor = inference(anchor_image, model)
+				inferenced_anchor = inferenced_anchor.expand(imageN, args.feature_size)
 			
-			distances = F.pairwise_distance(inferenced_data,inferenced_anchor,2).data.cpu().numpy().tolist()
-			result = []
+				distances = F.pairwise_distance(inferenced_data,inferenced_anchor,2).data.cpu().numpy().tolist()
+				result = []
 
-			for idx,dist in enumerate(distances):
-				result.append((paths[idx],dist))
+				for idx,dist in enumerate(distances):
+					result.append((paths[idx],dist))
 			
-			result = sorted(result, key = lambda x:x[1])
-			print(result[:3])
+				result = sorted(result, key = lambda x:x[1])
+				print(result[:3])
+			except:
+				print("Please input correct file path")
 
 def inference(image_data, model):
 	#Progress bar setting
@@ -124,6 +144,7 @@ def inference(image_data, model):
 	imageN = len(image_data)*args.batch_size
 	printProgressBar(counter, imageN, prefix = 'Progress:', suffix = 'Complete', length = 100)
 
+	#data inference
 	inferenced_data = torch.autograd.Variable(torch.randn(1,1),volatile=True)
 	for idx, (path, input) in enumerate(image_data):
 		input_var = torch.autograd.Variable(input,volatile=True)
